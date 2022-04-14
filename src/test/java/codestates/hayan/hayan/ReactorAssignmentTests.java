@@ -8,6 +8,7 @@ import reactor.test.StepVerifier;
 
 import java.time.Duration;
 import java.util.Locale;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ReactorAssignmentTests {
 
@@ -40,20 +41,6 @@ public class ReactorAssignmentTests {
 
     }
 
-    //3. “hello”, “there” 를 순차적으로 publish하여 순서대로 나오는지 검증
-    @Test
-    public void printHelloThere() {
-        Mono<String> hello = Mono.just("hello");
-        Mono<String> there = Mono.just("there");
-
-        Flux<String> flux = Flux.concat(hello, there)
-                .delayElements(Duration.ofSeconds(1))
-                .log();
-
-        StepVerifier.create(flux)
-                .expectNext("hello", "there")
-                .verifyComplete();
-    }
 
     //3. “hello”, “there” 를 순차적으로 publish하여 순서대로 나오는지 검증
     @Test
@@ -72,17 +59,49 @@ public class ReactorAssignmentTests {
     //Person("John", "[john@gmail.com](mailto:john@gmail.com)", "12345678")
     //Person("Jack", "[jack@gmail.com](mailto:jack@gmail.com)", "12345678")
     @Test
-    public void nameToUpperCase() {
+    public void nameToUpper() {
+
+        class Person {
+                private String name;
+                private String email;
+                private String password;
+            
+                public String getName() {
+                    return name;
+                }
+            
+                public String getEmail() {
+                    return email;
+                }
+            
+                public String getPassword() {
+                    return password;
+                }
+            
+                public Person(String name, String email, String password) {
+                    this.name = name;
+                    this.email = email;
+                    this.password = password;
+                }
+
+                public Person changeNameToUpper(){
+                        this.name = this.getName().toUpperCase();
+                        return this;
+                }
+            }
+            
+
         Person person1 = new Person("John", "[john@gmail.com](mailto:john@gmail.com)", "12345678");
         Person person2 = new Person("Jack", "[jack@gmail.com](mailto:jack@gmail.com)", "12345678");
 
         Flux<Person> flux = Flux.just(person1, person2)
-                .map(i -> new Person(i.getName().toUpperCase(Locale.ROOT), i.getEmail(), i.getPassword()))
+                .map(i -> i.changeNameToUpper())
                 .log() // log에 참조 값이 찍혀서 println으로 값 확인
                 .doOnNext(i -> System.out.println(i.getName() + ", " + i.getEmail()+  ", " + i.getPassword()));
 
         StepVerifier.create(flux)
-                .expectNextCount(2)
+                .assertNext(p->assertThat(p.getName()).isEqualTo("JOHN"))
+                .assertNext(p->assertThat(p.getName()).isEqualTo("JACK"))
                 .verifyComplete();
 
 
@@ -112,7 +131,7 @@ public class ReactorAssignmentTests {
     public void wordLenGreaterThan5ToUpperCaseAndRepeat() {
         Flux<String> flux = Flux.just("google", "abc", "fb", "stackoverflow")
                 .filter(it -> it.length() >= 5)
-                .map(it -> it.toUpperCase(Locale.ROOT))
+                .flatMap(it -> Mono.just(it.toUpperCase(Locale.ROOT)))
                 .repeat(1)
                 .subscribeOn(Schedulers.boundedElastic())
                 .log();
@@ -126,31 +145,3 @@ public class ReactorAssignmentTests {
 
 
 
-class Person {
-    private String name;
-    private String email;
-    private String password;
-
-    public String getName() {
-        return name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public Person(String name) {
-        super();
-        this.name = name;
-    }
-
-    public Person(String name, String email, String password) {
-        this.name = name;
-        this.email = email;
-        this.password = password;
-    }
-}
